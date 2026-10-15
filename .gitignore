@@ -1,0 +1,4 @@
+node_modules/
+.env
+public/index.backup.html
+server.backup.js
