@@ -2,3 +2,12 @@ node_modules/
 .env
 public/index.backup.html
 server.backup.js
+
+# Fichiers temporaires
+ajout-admin.js
+backups/
+public/*.bak
+public/*.backup.html
+server*.bak
+serveur.log
+data/demandes.json

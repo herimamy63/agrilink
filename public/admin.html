@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#075b35">
+<title>Agri Link | Administration</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f1f5f1;color:#183323}
+header{background:#075b35;color:white;padding:20px 16px}
+header h1{margin:0 0 7px}
+main{max-width:1100px;margin:22px auto;padding:0 14px}
+.card{background:white;padding:18px;border-radius:14px;margin-bottom:18px;box-shadow:0 3px 15px #0000000c}
+input,select,textarea,button{width:100%;padding:12px;margin:6px 0;border-radius:8px;font-size:15px}
+input,select,textarea{border:1px solid #ccd7ce;background:white;color:#183323}
+textarea{min-height:75px;resize:vertical}
+button{border:0;background:#087443;color:white;font-weight:bold;cursor:pointer}
+button.secondary{background:#e5eee7;color:#183323}
+button.danger{background:#b42318}
+button.small{width:auto;padding:9px 12px;margin-right:5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}
+.tabs button{width:auto;flex:1;min-width:120px}
+.hidden{display:none!important}
+.muted{color:#617267;font-size:14px}
+.notice{padding:12px;border-radius:8px;background:#edf5ed;margin-top:10px;overflow-wrap:anywhere}
+.error{background:#ffeded;color:#9b1c1c}
+.product,.order{border:1px solid #dce5dd;border-radius:12px;padding:13px;margin:12px 0;overflow-wrap:anywhere}
+.product img{width:100%;height:155px;object-fit:cover;border-radius:9px;background:#eee}
+.product h3,.order h3{margin:10px 0}
+.price{font-size:19px;font-weight:bold;color:#087443}
+.tag{display:inline-block;padding:5px 8px;border-radius:20px;background:#e5eee7;font-size:12px}
+.row{display:flex;align-items:center;gap:8px}
+.row>*{flex:1}
+.check{display:flex;align-items:center;gap:10px;margin:8px 0}
+.check input{width:20px;min-height:20px}
+.check label{font-size:14px}
+hr{border:0;border-top:1px solid #e2e9e3;margin:16px 0}
+h2{font-size:21px}
+@media(min-width:650px){.product-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.product{margin:0}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🌿 Agri Link</h1>
+  <div>Espace administrateur</div>
+</header>
+<main>
+<section class="card" id="login">
+  <h2>Connexion administrateur</h2>
+  <p class="muted">Ampidiro ny mot de passe administrateur.</p>
+  <input id="password" type="password" placeholder="Mot de passe administrateur" autocomplete="current-password">
+  <button id="connect">Se connecter</button>
+  <div id="loginMsg" class="notice hidden"></div>
+</section>
+
+<section id="dashboard" class="hidden">
+  <div class="card">
+    <div class="tabs">
+      <button data-tab="products">🌱 Produits</button>
+      <button data-tab="orders">📦 Commandes & réservations</button>
+    </div>
+    <div id="globalMsg" class="notice hidden"></div>
+    <button id="logout" class="secondary">Se déconnecter</button>
+  </div>
+
+  <section id="productsSection">
+    <div class="card">
+      <h2>Ajouter un produit</h2>
+      <form id="productForm">
+        <input name="name" placeholder="Nom du produit *" required maxlength="100">
+        <div class="grid">
+          <input name="cat" placeholder="Catégorie (ex. Légumes)">
+          <input name="price" type="number" min="0" step="any" placeholder="Prix en Ariary *" required>
+          <input name="unit" placeholder="Unité (kg, unité, L) *" required>
+          <input name="stockQty" type="number" min="0" step="any" placeholder="Quantité en stock" value="0">
+          <input name="origin" placeholder="Origine">
+          <input name="stock" placeholder="Information stock">
+        </div>
+        <input name="img" type="url" placeholder="Lien de l'image (URL)">
+        <textarea name="desc" placeholder="Description du produit"></textarea>
+        <div class="check">
+          <input id="newAvailable" name="available" type="checkbox">
+          <label for="newAvailable">Produit disponible à la vente</label>
+        </div>
+        <button type="submit">+ Ajouter le produit</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <h2>Catalogue des produits</h2>
+        <button id="refreshProducts" class="secondary">Actualiser</button>
+      </div>
+      <p id="productCount" class="muted">Chargement...</p>
+      <div id="productList" class="product-list"></div>
+    </div>
+  </section>
+
+  <section id="ordersSection" class="hidden">
+    <div class="card">
+      <h2>Commandes et réservations</h2>
+      <button id="refreshOrders" class="secondary">Actualiser les demandes</button>
+      <p id="orderCount" class="muted">Chargement...</p>
+      <div id="orders"></div>
+    </div>
+  </section>
+</section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let adminPassword = '';
+
+function showMessage(id, text, error=false) {
+  const el = $(id);
+  el.textContent = text;
+  el.classList.remove('hidden','error');
+  if (error) el.classList.add('error');
+}
+
+function money(value) {
+  return Number(value || 0).toLocaleString('fr-FR') + ' Ar';
+}
+
+async function api(url, options={}) {
+  const headers = {
+    ...(options.body ? {'Content-Type':'application/json'} : {}),
+    'x-admin-password':adminPassword,
+    ...(options.headers || {})
+  };
+  const response = await fetch(url, {...options, headers, cache:'no-store'});
+  const text = await response.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch { throw new Error('Réponse serveur invalide. Vérifiez que le serveur fonctionne.'); }
+  if (!response.ok) throw new Error(data.message || ('Erreur HTTP '+response.status));
+  return data;
+}
+
+function switchTab(tab) {
+  $('productsSection').classList.toggle('hidden',tab !== 'products');
+  $('ordersSection').classList.toggle('hidden',tab !== 'orders');
+  document.querySelectorAll('[data-tab]').forEach(b => {
+    b.classList.toggle('secondary', b.dataset.tab !== tab);
+  });
+}
+
+document.querySelectorAll('[data-tab]').forEach(b => {
+  b.addEventListener('click', () => switchTab(b.dataset.tab));
+});
+
+async function loadProducts() {
+  $('productCount').textContent = 'Chargement...';
+  $('productList').replaceChildren();
+  try {
+    const data = await api('/api/produits');
+    const products = Array.isArray(data.produits) ? data.produits : [];
+    $('productCount').textContent = products.length + ' produit(s)';
+    if (!products.length) {
+      $('productList').textContent = 'Aucun produit.';
+      return;
+    }
+
+    products.forEach(p => {
+      const card = document.createElement('article');
+      card.className = 'product';
+
+      if (p.img) {
+        const img = document.createElement('img');
+        img.src = p.img;
+        img.alt = p.name || 'Produit';
+        img.loading = 'lazy';
+        img.onerror = () => img.remove();
+        card.appendChild(img);
+      }
+
+      const title = document.createElement('h3');
+      title.textContent = p.name || 'Produit sans nom';
+      card.appendChild(title);
+
+      const price = document.createElement('p');
+      price.className = 'price';
+      price.textContent = money(p.price) + ' / ' + (p.unit || 'unité');
+      card.appendChild(price);
+
+      const details = document.createElement('p');
+      details.className = 'muted';
+      details.textContent =
+        'Catégorie : ' + (p.cat || 'Autres') +
+        ' · Stock : ' + (p.stockQty ?? 0) + ' ' + (p.unit || '') +
+        ' · Origine : ' + (p.origin || 'À confirmer');
+      card.appendChild(details);
+
+      const status = document.createElement('span');
+      status.className = 'tag';
+      status.textContent = p.available ? 'Disponible' : 'Indisponible';
+      card.appendChild(status);
+
+      const actions = document.createElement('div');
+      actions.style.marginTop = '12px';
+
+      const edit = document.createElement('button');
+      edit.className = 'small';
+      edit.textContent = 'Modifier';
+      edit.addEventListener('click', () => editProduct(p));
+      actions.appendChild(edit);
+
+      const toggle = document.createElement('button');
+      toggle.className = 'small secondary';
+      toggle.textContent = p.available ? 'Désactiver' : 'Activer';
+      toggle.addEventListener('click', async () => {
+        try {
+          await api('/api/admin/produits/' + encodeURIComponent(p.id), {
+            method:'PATCH',
+            body:JSON.stringify({available:!p.available})
+          });
+          showMessage('globalMsg','Disponibilité mise à jour.');
+          await loadProducts();
+        } catch(e) { showMessage('globalMsg',e.message,true); }
+      });
+      actions.appendChild(toggle);
+
+      const del = document.createElement('button');
+      del.className = 'small danger';
+      del.textContent = 'Supprimer';
+      del.addEventListener('click', async () => {
+        if (!confirm('Supprimer « '+p.name+' » ?')) return;
+        try {
+          await api('/api/admin/produits/' + encodeURIComponent(p.id), {method:'DELETE'});
+          showMessage('globalMsg','Produit supprimé.');
+          await loadProducts();
+        } catch(e) { showMessage('globalMsg',e.message,true); }
+      });
+      actions.appendChild(del);
+      card.appendChild(actions);
+      $('productList').appendChild(card);
+    });
+  } catch(e) {
+    $('productCount').textContent = 'Erreur de chargement';
+    showMessage('globalMsg',e.message,true);
+  }
+}
+
+async function editProduct(p) {
+  const name = prompt('Nom du produit :',p.name || '');
+  if (name === null) return;
+  const price = prompt('Prix en Ariary :',p.price);
+  if (price === null) return;
+  const stockQty = prompt('Quantité en stock ('+(p.unit || '')+') :',p.stockQty ?? 0);
+  if (stockQty === null) return;
+
+  if (!name.trim() || price.trim()==='' || stockQty.trim()==='' ||
+      !Number.isFinite(Number(price)) || Number(price)<0 ||
+      !Number.isFinite(Number(stockQty)) || Number(stockQty)<0) {
+    showMessage('globalMsg','Nom, prix ou stock invalide.',true);
+    return;
+  }
+
+  try {
+    await api('/api/admin/produits/' + encodeURIComponent(p.id), {
+      method:'PATCH',
+      body:JSON.stringify({
+        name:name.trim(),
+        price:Number(price),
+        stockQty:Number(stockQty),
+        available:Number(stockQty)>0 ? p.available : false
+      })
+    });
+    showMessage('globalMsg','Produit modifié.');
+    await loadProducts();
+  } catch(e) { showMessage('globalMsg',e.message,true); }
+}
+
+$('productForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = new FormData(e.currentTarget);
+  const product = {
+    name:String(f.get('name') || '').trim(),
+    cat:String(f.get('cat') || 'Autres').trim() || 'Autres',
+    price:Number(f.get('price')),
+    unit:String(f.get('unit') || '').trim(),
+    stockQty:Number(f.get('stockQty') || 0),
+    origin:String(f.get('origin') || 'À confirmer').trim(),
+    stock:String(f.get('stock') || 'À confirmer').trim(),
+    img:String(f.get('img') || '').trim(),
+    desc:String(f.get('desc') || '').trim(),
+    available:$('newAvailable').checked
+  };
+  if (!product.name || !product.unit || !Number.isFinite(product.price) ||
+      product.price < 0 || !Number.isFinite(product.stockQty) || product.stockQty < 0) {
+    showMessage('globalMsg','Vérifiez le nom, le prix, l’unité et le stock.',true);
+    return;
+  }
+  try {
+    await api('/api/admin/produits', {
+      method:'POST',
+      body:JSON.stringify(product)
+    });
+    e.currentTarget.reset();
+    e.currentTarget.elements.stockQty.value = '0';
+    showMessage('globalMsg','Produit ajouté avec succès.');
+    await loadProducts();
+  } catch(err) { showMessage('globalMsg',err.message,true); }
+});
+
+async function loadOrders() {
+  $('orderCount').textContent = 'Chargement...';
+  $('orders').replaceChildren();
+  try {
+    const data = await api('/api/admin/demandes');
+    const list = Array.isArray(data.demandes) ? data.demandes : [];
+    $('orderCount').textContent = list.length + ' demande(s) enregistrée(s)';
+    if (!list.length) {
+      $('orders').textContent = 'Aucune commande ou réservation pour le moment.';
+      return;
+    }
+
+    list.slice().reverse().forEach(item => {
+      const card = document.createElement('article');
+      card.className = 'order';
+
+      const title = document.createElement('h3');
+      title.textContent = (item.type === 'commande' ? 'Commande' : 'Réservation') +
+        ' — ' + (item.nom || 'Client');
+      card.appendChild(title);
+
+      const lines = [
+        'Téléphone : ' + (item.telephone || '—'),
+        'Produits : ' + JSON.stringify(item.produits || []),
+        'Date souhaitée : ' + (item.date || '—'),
+        'Adresse : ' + (item.adresse || '—'),
+        'Message : ' + (item.message || '—'),
+        'Créée le : ' + (item.creeLe || '—'),
+        'Référence : ' + (item.id || '—')
+      ];
+      lines.forEach(line => {
+        const p = document.createElement('p');
+        p.textContent = line;
+        card.appendChild(p);
+      });
+
+      const label = document.createElement('label');
+      label.textContent = 'Statut de la demande';
+      card.appendChild(label);
+
+      const select = document.createElement('select');
+      [
+        ['en_attente','En attente'],
+        ['confirmee','Confirmée'],
+        ['livree','Livrée'],
+        ['annulee','Annulée']
+      ].forEach(([value,text]) => {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = text;
+        select.appendChild(opt);
+      });
+      select.value = item.statut || 'en_attente';
+      card.appendChild(select);
+
+      const save = document.createElement('button');
+      save.textContent = 'Enregistrer le statut';
+      save.addEventListener('click', async () => {
+        try {
+          await api('/api/admin/demandes/' + encodeURIComponent(item.id) + '/statut', {
+            method:'PATCH',
+            body:JSON.stringify({statut:select.value})
+          });
+          showMessage('globalMsg','Statut mis à jour.');
+          await loadOrders();
+        } catch(err) { showMessage('globalMsg',err.message,true); }
+      });
+      card.appendChild(save);
+      $('orders').appendChild(card);
+    });
+  } catch(e) {
+    $('orderCount').textContent = 'Erreur de chargement';
+    $('orders').textContent = e.message;
+  }
+}
+
+$('connect').addEventListener('click', async () => {
+  adminPassword = $('password').value;
+  if (!adminPassword) {
+    showMessage('loginMsg','Ampidiro aloha ny mot de passe.',true);
+    return;
+  }
+  try {
+    await api('/api/admin/demandes');
+    $('login').classList.add('hidden');
+    $('dashboard').classList.remove('hidden');
+    $('password').value = '';
+    switchTab('products');
+    await Promise.all([loadProducts(),loadOrders()]);
+  } catch(e) {
+    adminPassword = '';
+    showMessage('loginMsg',e.message,true);
+  }
+});
+
+$('password').addEventListener('keydown',e => {
+  if (e.key === 'Enter') $('connect').click();
+});
+$('refreshProducts').addEventListener('click',loadProducts);
+$('refreshOrders').addEventListener('click',loadOrders);
+$('logout').addEventListener('click',() => {
+  adminPassword = '';
+  $('dashboard').classList.add('hidden');
+  $('login').classList.remove('hidden');
+  $('loginMsg').classList.add('hidden');
+  $('password').value = '';
+});
+</script>
+</body>
+</html>
