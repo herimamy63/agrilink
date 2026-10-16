@@ -326,20 +326,48 @@ async function loadOrders() {
         ' — ' + (item.nom || 'Client');
       card.appendChild(title);
 
-      const lines = [
-        'Téléphone : ' + (item.telephone || '—'),
-        'Produits : ' + JSON.stringify(item.produits || []),
-        'Date souhaitée : ' + (item.date || '—'),
-        'Adresse : ' + (item.adresse || '—'),
-        'Message : ' + (item.message || '—'),
-        'Créée le : ' + (item.creeLe || '—'),
-        'Référence : ' + (item.id || '—')
-      ];
-      lines.forEach(line => {
+      function addField(label, value) {
         const p = document.createElement('p');
-        p.textContent = line;
+        const strong = document.createElement('strong');
+        strong.textContent = label + ' : ';
+        p.appendChild(strong);
+        p.appendChild(document.createTextNode(value || '—'));
         card.appendChild(p);
-      });
+      }
+
+      addField('Téléphone', item.telephone);
+      addField('Date souhaitée', item.date);
+      addField('Adresse', item.adresse);
+
+      const heading = document.createElement('p');
+      const strong = document.createElement('strong');
+      strong.textContent = 'Produits :';
+      heading.appendChild(strong);
+      card.appendChild(heading);
+
+      const products = Array.isArray(item.produits) ? item.produits : [];
+      if (products.length) {
+        const ul = document.createElement('ul');
+        products.forEach(product => {
+          const li = document.createElement('li');
+          if (product.nom || product.name) {
+            li.textContent = (product.nom || product.name) +
+              ' — Quantité : ' + (product.quantite ?? product.quantity ?? 1) +
+              ' ' + (product.unite || product.unit || '') +
+              ' — ' + money(product.total ?? product.price ?? 0);
+          } else {
+            li.textContent = product.description || JSON.stringify(product);
+          }
+          ul.appendChild(li);
+        });
+        card.appendChild(ul);
+      } else {
+        addField('Détails', 'Non précisés');
+      }
+
+      addField('Message', item.message);
+      addField('Créée le', item.creeLe ? new Date(item.creeLe).toLocaleString('fr-FR') : '—');
+      addField('Référence', item.id);
 
       const label = document.createElement('label');
       label.textContent = 'Statut de la demande';
