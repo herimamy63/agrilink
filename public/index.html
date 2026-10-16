@@ -113,8 +113,99 @@ document.getElementById("categories").addEventListener("click",e=>{let b=e.targe
 ["search","sort","unitFilter"].forEach(id=>document.getElementById(id).addEventListener(id==="search"?"input":"change",renderProducts));
 document.getElementById("menuBtn").addEventListener("click",()=>document.getElementById("links").classList.toggle("open"));document.querySelectorAll("#links a").forEach(a=>a.addEventListener("click",()=>document.getElementById("links").classList.remove("open")));
 document.getElementById("reserveDate").min=new Date().toISOString().split("T")[0];
-document.getElementById("reservationForm").addEventListener("submit",e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.target));let msg=`Bonjour Agri Link, je souhaite faire une demande.\\nNom : ${d.name}\\nTéléphone : ${d.phone}\\nType : ${d.kind}\\nDate souhaitée : ${d.date}\\nProduits/quantités : ${d.items}\\nLieu : ${d.place}\\nPrécisions : ${d.notes||"Aucune"}\\nMerci de confirmer la disponibilité, les prix et la livraison.`;document.getElementById("reserveItems").value=d.items;sendOrShow(msg,"Votre demande est prête. Ajoutez le numéro WhatsApp officiel dans le code pour l'envoyer directement.")});
-document.getElementById("checkoutForm").addEventListener("submit",e=>{e.preventDefault();if(!cart.length)return;let d=Object.fromEntries(new FormData(e.target));let lines=cart.map(c=>{let p=productsData.find(x=>x.id===c.id);return `${p.name} x ${c.qty} (${fmt(p.price*c.qty)})`}).join("\\n");let total=cart.reduce((s,c)=>s+productsData.find(p=>p.id===c.id).price*c.qty,0);let msg=`Bonjour Agri Link, je souhaite confirmer cette commande (prix indicatifs).\\nNom : ${d.name}\\nTéléphone : ${d.phone}\\nProduits :\\n${lines}\\nTotal indicatif : ${fmt(total)}\\nPaiement souhaité : ${d.payment}\\nLivraison/retrait : ${d.delivery}\\nMerci de confirmer le stock, le prix final, les frais et les instructions de paiement.`;sendOrShow(msg,"Commande préparée. Le stock, le prix final et le paiement doivent être confirmés par Agri Link.");});
+
+document.getElementById("reservationForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const form = e.target;
+  const d = Object.fromEntries(new FormData(form));
+
+  const payload = {
+    nom: d.name,
+    telephone: d.phone,
+    produits: [{ description: d.items, type: d.kind }],
+    date: d.date,
+    adresse: d.place,
+    message: "Type: " + d.kind + ". Précisions: " + (d.notes || "Aucune")
+  };
+
+  try {
+    const response = await fetch("/api/reservations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "La réservation n'a pas été enregistrée.");
+    }
+
+    toast("Réservation enregistrée avec succès !");
+    form.reset();
+    document.getElementById("reserveDate").min = new Date().toISOString().split("T")[0];
+  } catch (error) {
+    toast("Erreur : " + error.message);
+    console.error(error);
+  }
+});
+
+
+document.getElementById("checkoutForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!cart.length) {
+    toast("Votre panier est vide.");
+    return;
+  }
+
+  const form = e.target;
+  const d = Object.fromEntries(new FormData(form));
+  const lignes = cart.map(c => {
+    const p = productsData.find(x => x.id === c.id);
+    return {
+      id: p.id,
+      nom: p.name,
+      quantite: c.qty,
+      prix_unitaire: p.price,
+      unite: p.unit,
+      total: p.price * c.qty
+    };
+  });
+
+  const total = lignes.reduce((s, p) => s + p.total, 0);
+  const payload = {
+    nom: d.name,
+    telephone: d.phone,
+    produits: lignes,
+    adresse: d.delivery,
+    message: "Total indicatif: " + fmt(total) +
+      ". Paiement souhaité: " + d.payment +
+      ". Prix et stock à confirmer par Agri Link."
+  };
+
+  try {
+    const response = await fetch("/api/commandes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.message || "La commande n'a pas été enregistrée.");
+    }
+
+    cart = [];
+    saveCart();
+    renderCart();
+    form.reset();
+    closeModal("cartModal");
+    toast("Commande enregistrée ! Agri Link doit confirmer le stock et le paiement.");
+  } catch (error) {
+    toast("Erreur : " + error.message);
+    console.error(error);
+  }
+});
+
 function sendOrShow(msg,note){closeModal("cartModal");let blob=new Blob([msg],{type:"text/plain;charset=utf-8"});let url=URL.createObjectURL(blob);let a=document.createElement("a");a.href=url;a.download="demande-agri-link.txt";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);toast(note+" Fichier de demande téléchargé.");}
 document.getElementById("newsForm").addEventListener("submit",e=>{e.preventDefault();toast("Merci ! L'inscription newsletter nécessitera un service serveur.");e.target.reset()});
 document.querySelectorAll(".modalbg").forEach(bg=>bg.addEventListener("click",e=>{if(e.target===bg)bg.classList.remove("show")}));document.addEventListener("keydown",e=>{if(e.key==="Escape")document.querySelectorAll(".modalbg").forEach(x=>x.classList.remove("show"))});
