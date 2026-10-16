@@ -102,7 +102,108 @@ function creerDemande(type, req, res) {
 }
 
 app.post('/api/commandes', (req, res) => {
-  return creerDemande('commande', req, res);
+  try {
+    const lignes = req.body && req.body.produits;
+
+    if (!Array.isArray(lignes) || lignes.length === 0 || lignes.length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ajoutez au moins un produit valide à la commande.'
+      });
+    }
+
+    const catalogue = lireProduits();
+    if (!Array.isArray(catalogue)) {
+      throw new Error('Catalogue produits invalide.');
+    }
+
+    const quantites = new Map();
+
+    for (const ligne of lignes) {
+      const id = Number(ligne && ligne.id);
+      const quantite = Number(ligne && ligne.quantite);
+
+      if (!Number.isSafeInteger(id) || id <= 0 ||
+          !Number.isSafeInteger(quantite) || quantite <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Identifiant ou quantité de produit invalide.'
+        });
+      }
+
+      quantites.set(id, (quantites.get(id) || 0) + quantite);
+    }
+
+    const produitsVerifies = [];
+    let totalServeur = 0;
+
+    for (const [id, quantite] of quantites) {
+      const p = catalogue.find(x => Number(x.id) === id);
+
+      if (!p) {
+        return res.status(400).json({
+          success: false,
+          message: 'Un produit de la commande est introuvable.'
+        });
+      }
+
+      const prix = Number(p.price);
+      const stock = Number(p.stockQty);
+
+      if (p.available !== true || !Number.isSafeInteger(stock) ||
+          stock <= 0 || quantite > stock) {
+        return res.status(409).json({
+          success: false,
+          message: 'Stock insuffisant ou produit indisponible : ' + p.name
+        });
+      }
+
+      if (!Number.isFinite(prix) || prix < 0 ||
+          !Number.isSafeInteger(prix * quantite)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Prix du produit invalide.'
+        });
+      }
+
+      const sousTotal = prix * quantite;
+      totalServeur += sousTotal;
+
+      produitsVerifies.push({
+        id: p.id,
+        nom: p.name,
+        quantite,
+        prix_unitaire: prix,
+        unite: p.unit,
+        total: sousTotal
+      });
+    }
+
+    if (!Number.isSafeInteger(totalServeur)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Total de commande invalide.'
+      });
+    }
+
+    req.body = {
+      ...req.body,
+      produits: produitsVerifies,
+      message: [
+        typeof req.body.message === 'string' ? req.body.message.trim().slice(0, 800) : '',
+        'Total calculé par le serveur : ' + totalServeur + ' Ar.',
+        'Stock à confirmer par Agri Link.'
+      ].filter(Boolean).join(' ')
+    };
+
+    return creerDemande('commande', req, res);
+  } catch (error) {
+    console.error('Erreur de validation de commande:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Impossible de vérifier la commande pour le moment.'
+    });
+  }
 });
 
 app.post('/api/reservations', (req, res) => {

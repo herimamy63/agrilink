@@ -82,31 +82,122 @@
 <button class="btn primary" style="width:100%" type="submit">Préparer ma commande →</button></form></div></div>
 <div class="modalbg" id="loginModal" role="dialog" aria-modal="true" aria-label="Connexion"><div class="modal"><button class="close" onclick="closeModal('loginModal')">×</button><h2>Espace client</h2><p style="color:var(--muted);font-size:13px">La connexion client nécessite un serveur et un système de comptes. Pour cette maquette, contactez Agri Link pour suivre votre commande.</p><a class="btn primary" href="#contact" onclick="closeModal('loginModal')">Contacter Agri Link</a></div></div>
 <script>
-const productsData=[
-{id:1,name:"Tomates fraîches",cat:"Légumes",price:2500,unit:"kg",origin:"Antsirabe, Vakinankaratra",stock:"Selon récolte",img:"https://images.unsplash.com/photo-1546094096-0df4bcaaa337?auto=format&fit=crop&w=700&q=80",desc:"Tomates pour cuisine et vente, triées selon le lot disponible."},
-{id:2,name:"Carottes",cat:"Légumes",price:2200,unit:"kg",origin:"Vakinankaratra",stock:"À confirmer",img:"https://images.unsplash.com/photo-1445282768818-728615cc910a?auto=format&fit=crop&w=700&q=80",desc:"Carottes fraîches, adaptées aux repas quotidiens."},
-{id:3,name:"Pommes de terre",cat:"Légumes",price:2000,unit:"kg",origin:"Vakinankaratra",stock:"À confirmer",img:"https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=700&q=80",desc:"Tubercules pour ménages, restaurants et revendeurs."},
-{id:4,name:"Bananes",cat:"Fruits",price:3000,unit:"kg",origin:"Producteur partenaire, origine à confirmer",stock:"Saisonnier",img:"https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=700&q=80",desc:"Bananes de saison, maturité selon le lot."},
-{id:5,name:"Ananas",cat:"Fruits",price:4500,unit:"unité",origin:"Région productrice à confirmer",stock:"Saisonnier",img:"https://images.unsplash.com/photo-1550258987-190a2d41a8ba?auto=format&fit=crop&w=700&q=80",desc:"Ananas frais, calibre et maturité à confirmer."},
-{id:6,name:"Mangues",cat:"Fruits",price:3500,unit:"kg",origin:"Selon saison et arrivage",stock:"Saisonnier",img:"https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&w=700&q=80",desc:"Fruits de saison, vendus selon la disponibilité."},
-{id:7,name:"Riz blanc",cat:"Céréales",price:3500,unit:"kg",origin:"Région et variété à confirmer",stock:"À confirmer",img:"https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=700&q=80",desc:"Riz vendu au kilogramme ; qualité et variété à préciser."},
-{id:8,name:"Maïs sec",cat:"Céréales",price:2500,unit:"kg",origin:"Producteur partenaire à confirmer",stock:"À confirmer",img:"https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=700&q=80",desc:"Grains secs pour cuisine ou usages professionnels."},
-{id:9,name:"Haricots secs",cat:"Céréales",price:5000,unit:"kg",origin:"Origine exacte à confirmer",stock:"À confirmer",img:"https://images.unsplash.com/photo-1551462147-ff29053bfc14?auto=format&fit=crop&w=700&q=80",desc:"Légumineuses sèches, conditionnement selon demande."},
-{id:10,name:"Piment rouge",cat:"Épices",price:8000,unit:"kg",origin:"Producteur partenaire à confirmer",stock:"À confirmer",img:"https://images.unsplash.com/photo-1588252303782-cb80119abd6d?auto=format&fit=crop&w=700&q=80",desc:"Piment vendu selon la disponibilité et le niveau de séchage."},
-{id:11,name:"Gingembre",cat:"Épices",price:6000,unit:"kg",origin:"Zone de production à confirmer",stock:"À confirmer",img:"https://images.unsplash.com/photo-1615485500704-8e990f9900f5?auto=format&fit=crop&w=700&q=80",desc:"Racines fraîches pour cuisine et transformation."},
-{id:12,name:"Œufs",cat:"Élevage",price:1000,unit:"unité",origin:"Éleveur partenaire à confirmer",stock:"Sur réservation",img:"https://images.unsplash.com/photo-1506976785307-8732e854ad03?auto=format&fit=crop&w=700&q=80",desc:"Vente à l'unité ou par plateau selon disponibilité."},
-{id:13,name:"Lait frais",cat:"Élevage",price:4000,unit:"L",origin:"Éleveur partenaire à confirmer",stock:"Sur réservation",img:"https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=700&q=80",desc:"Produit sensible : fraîcheur, conditionnement et livraison à confirmer."},
-{id:14,name:"Manioc",cat:"Légumes",price:1800,unit:"kg",origin:"Producteur partenaire à confirmer",stock:"À confirmer",img:"https://images.unsplash.com/photo-1596097635121-14b63b7a0c19?auto=format&fit=crop&w=700&q=80",desc:"Racines fraîches, quantité selon le lot disponible."},
-{id:15,name:"Farine de maïs",cat:"Céréales",price:4000,unit:"kg",origin:"Lieu de transformation à confirmer",stock:"À confirmer",img:"https://images.unsplash.com/photo-1627485937980-221c88ac04f9?auto=format&fit=crop&w=700&q=80",desc:"Conditionnement et origine à préciser avant commande."},
-{id:16,name:"Café en grains",cat:"Épices",price:18000,unit:"kg",origin:"Région productrice à confirmer",stock:"Selon arrivage",img:"https://images.unsplash.com/photo-1447933601403-0c6688de566e?auto=format&fit=crop&w=700&q=80",desc:"Produit agricole transformé, variété et torréfaction à préciser."}
-];
+let productsData = [];
+
+async function loadProducts() {
+  try {
+    const response = await fetch('/api/produits', { cache: 'no-store' });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+
+    const data = await response.json();
+    if (!data.success || !Array.isArray(data.produits)) {
+      throw new Error('Réponse produits invalide');
+    }
+
+    productsData = data.produits.map(p => ({
+      ...p,
+      id: Number(p.id),
+      price: Number(p.price) || 0,
+      stockQty: Math.max(0, Number(p.stockQty) || 0),
+      available: p.available === true
+    }));
+
+    cart = cart.filter(c => productsData.some(p => p.id === Number(c.id)));
+    renderProducts();
+    saveCart();
+    renderCart();
+  } catch (error) {
+    console.error('Chargement des produits impossible:', error);
+    document.getElementById('products').innerHTML =
+      '<div class="empty" style="grid-column:1/-1">Impossible de charger les produits. Réessayez dans quelques instants.</div>';
+    toast('Erreur de chargement des produits.');
+  }
+}
+
 let cart=JSON.parse(sessionStorage.getItem("agrilink_cart")||"[]"),activeCat="Tous";
 const fmt=n=>new Intl.NumberFormat("fr-FR").format(n)+" Ar";
-function renderProducts(){let q=document.getElementById("search").value.toLowerCase(),unit=document.getElementById("unitFilter").value,sort=document.getElementById("sort").value;let list=productsData.filter(p=>(activeCat==="Tous"||p.cat===activeCat)&&(p.name+" "+p.cat+" "+p.origin).toLowerCase().includes(q)&&(unit==="all"||p.unit===unit));if(sort==="low")list.sort((a,b)=>a.price-b.price);if(sort==="high")list.sort((a,b)=>b.price-a.price);if(sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name));document.getElementById("products").innerHTML=list.length?list.map(p=>`<article class="product"><div class="productimg"><img loading="lazy" src="${p.img}" alt="${p.name}" onerror="this.src='https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=700&q=80'"><span class="pill">${p.cat}</span><button class="heart" aria-label="Ajouter aux favoris" onclick="toast('Les favoris seront disponibles avec un compte client.')">♡</button></div><div class="pbody"><div class="pmeta"><span>★ Produit local</span><span>${p.stock}</span></div><h3>${p.name}</h3><p class="desc">${p.desc}</p><div class="origin">📍 ${p.origin}</div><div class="pfoot"><div class="price">${fmt(p.price)} <small>/ ${p.unit}</small></div><button class="add" aria-label="Ajouter ${p.name}" onclick="addToCart(${p.id})">+</button></div></div></article>`).join(""):'<div class="empty" style="grid-column:1/-1">Aucun produit trouvé. Essayez une autre recherche.</div>'}
+function renderProducts(){let q=document.getElementById("search").value.toLowerCase(),unit=document.getElementById("unitFilter").value,sort=document.getElementById("sort").value;let list=productsData.filter(p=>(activeCat==="Tous"||p.cat===activeCat)&&(p.name+" "+p.cat+" "+p.origin).toLowerCase().includes(q)&&(unit==="all"||p.unit===unit));if(sort==="low")list.sort((a,b)=>a.price-b.price);if(sort==="high")list.sort((a,b)=>b.price-a.price);if(sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name));document.getElementById("products").innerHTML=list.length?list.map(p=>`<article class="product"><div class="productimg"><img loading="lazy" src="${p.img}" alt="${p.name}" onerror="this.src='https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=700&q=80'"><span class="pill">${p.cat}</span><button class="heart" aria-label="Ajouter aux favoris" onclick="toast('Les favoris seront disponibles avec un compte client.')">♡</button></div><div class="pbody"><div class="pmeta"><span>★ Produit local</span><span>${p.stock}</span></div><h3>${p.name}</h3><p class="desc">${p.desc}</p><div class="origin">📍 ${p.origin}</div><div class="pfoot"><div class="price">${fmt(p.price)} <small>/ ${p.unit}</small></div><button class="add" aria-label="Ajouter ${p.name}" onclick="addToCart(${p.id})" ${(!p.available || p.stockQty<=0) ? "disabled title=\"Produit indisponible\"" : ""}>+</button></div></div></article>`).join(""):'<div class="empty" style="grid-column:1/-1">Aucun produit trouvé. Essayez une autre recherche.</div>'}
 function saveCart(){sessionStorage.setItem("agrilink_cart",JSON.stringify(cart));document.getElementById("cartCount").textContent=cart.reduce((s,x)=>s+x.qty,0)}
-function addToCart(id){let p=productsData.find(x=>x.id===id),item=cart.find(x=>x.id===id);if(item)item.qty++;else cart.push({id,qty:1});saveCart();toast(p.name+" ajouté au panier.");}
-function changeQty(id,delta){let item=cart.find(x=>x.id===id);if(item)item.qty+=delta;cart=cart.filter(x=>x.qty>0);saveCart();renderCart()}
-function renderCart(){let el=document.getElementById("cartContents");if(!cart.length){el.innerHTML=`<div class="empty">Votre panier est vide.<br><a href="#boutique" class="btn primary" onclick="closeModal('cartModal')">Découvrir les produits</a></div>`;document.getElementById("cartTotal").textContent=fmt(0);document.getElementById("checkoutForm").style.display="none";return}document.getElementById("checkoutForm").style.display="block";let total=0;el.innerHTML=cart.map(c=>{let p=productsData.find(x=>x.id===c.id);total+=p.price*c.qty;return `<div class="cartrow"><div><strong>${p.name}</strong><div style="font-size:12px;color:#68776c">${fmt(p.price)} / ${p.unit}</div></div><div style="text-align:right"><strong>${fmt(p.price*c.qty)}</strong><div class="qty"><button type="button" onclick="changeQty(${p.id},-1)">−</button><span>${c.qty}</span><button type="button" onclick="changeQty(${p.id},1)">+</button></div></div></div>`}).join("");document.getElementById("cartTotal").textContent=fmt(total)}
+function addToCart(id){let p=productsData.find(x=>x.id===id);if(!p||!p.available||p.stockQty<=0){toast("Produit actuellement indisponible.");return;}let item=cart.find(x=>x.id===id);if(item){if(item.qty>=p.stockQty){toast("Stock insuffisant.");return;}item.qty++;}else cart.push({id,qty:1});saveCart();toast(p.name+" ajouté au panier.");}
+
+function changeQty(id, delta) {
+  const item = cart.find(x => Number(x.id) === Number(id));
+  const p = productsData.find(x => Number(x.id) === Number(id));
+
+  if (!item || !p) {
+    cart = cart.filter(x => Number(x.id) !== Number(id));
+    saveCart();
+    renderCart();
+    toast("Nesorina ny vokatra tsy hita intsony.");
+    return;
+  }
+
+  if (delta > 0) {
+    if (!p.available || p.stockQty <= 0) {
+      toast("Produit actuellement indisponible.");
+      return;
+    }
+    if (item.qty >= p.stockQty) {
+      toast("Stock insuffisant. Quantité maximale : " + p.stockQty);
+      return;
+    }
+  }
+
+  item.qty += delta;
+  cart = cart.filter(x => x.qty > 0);
+  saveCart();
+  renderCart();
+}
+
+function renderCart() {
+  const el = document.getElementById("cartContents");
+
+  cart = cart.filter(c => {
+    const p = productsData.find(x => Number(x.id) === Number(c.id));
+    return p && p.available && p.stockQty > 0;
+  });
+
+  cart.forEach(c => {
+    const p = productsData.find(x => Number(x.id) === Number(c.id));
+    c.qty = Math.min(Math.max(1, Number(c.qty) || 1), p.stockQty);
+  });
+
+  saveCart();
+
+  if (!cart.length) {
+    el.innerHTML = `<div class="empty">Votre panier est vide.<br><a href="#boutique" class="btn primary" onclick="closeModal('cartModal')">Découvrir les produits</a></div>`;
+    document.getElementById("cartTotal").textContent = fmt(0);
+    document.getElementById("checkoutForm").style.display = "none";
+    return;
+  }
+
+  document.getElementById("checkoutForm").style.display = "block";
+  let total = 0;
+
+  el.innerHTML = cart.map(c => {
+    const p = productsData.find(x => Number(x.id) === Number(c.id));
+    const lineTotal = p.price * c.qty;
+    total += lineTotal;
+
+    return `<div class="cartrow">
+      <div>
+        <strong>${p.name}</strong>
+        <div style="font-size:12px;color:#68776c">${fmt(p.price)} / ${p.unit}</div>
+        <div style="font-size:12px;color:#68776c">Stock disponible : ${p.stockQty}</div>
+      </div>
+      <div style="text-align:right">
+        <strong>${fmt(lineTotal)}</strong>
+        <div class="qty">
+          <button type="button" onclick="changeQty(${p.id},-1)">−</button>
+          <span>${c.qty}</span>
+          <button type="button" onclick="changeQty(${p.id},1)" ${c.qty >= p.stockQty ? "disabled" : ""}>+</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+
+  document.getElementById("cartTotal").textContent = fmt(total);
+}
 function openCart(){renderCart();document.getElementById("cartModal").classList.add("show")}function openLogin(){document.getElementById("loginModal").classList.add("show")}function closeModal(id){document.getElementById(id).classList.remove("show")}
 function toast(s){let t=document.getElementById("toast");t.textContent=s;t.classList.add("show");clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>t.classList.remove("show"),2600)}
 document.getElementById("categories").addEventListener("click",e=>{let b=e.target.closest("[data-cat]");if(!b)return;activeCat=b.dataset.cat;document.querySelectorAll(".cat").forEach(x=>x.classList.toggle("active",x===b));renderProducts();document.getElementById("products").scrollIntoView({behavior:"smooth",block:"start"})});
@@ -209,6 +300,6 @@ document.getElementById("checkoutForm").addEventListener("submit", async e => {
 function sendOrShow(msg,note){closeModal("cartModal");let blob=new Blob([msg],{type:"text/plain;charset=utf-8"});let url=URL.createObjectURL(blob);let a=document.createElement("a");a.href=url;a.download="demande-agri-link.txt";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);toast(note+" Fichier de demande téléchargé.");}
 document.getElementById("newsForm").addEventListener("submit",e=>{e.preventDefault();toast("Merci ! L'inscription newsletter nécessitera un service serveur.");e.target.reset()});
 document.querySelectorAll(".modalbg").forEach(bg=>bg.addEventListener("click",e=>{if(e.target===bg)bg.classList.remove("show")}));document.addEventListener("keydown",e=>{if(e.key==="Escape")document.querySelectorAll(".modalbg").forEach(x=>x.classList.remove("show"))});
-document.getElementById("year").textContent=new Date().getFullYear();renderProducts();saveCart();
+document.getElementById("year").textContent=new Date().getFullYear();loadProducts();saveCart();
 </script>
 </body></html>
